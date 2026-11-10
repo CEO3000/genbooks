@@ -1,0 +1,21 @@
+# Backup clock for the generation watchdog (src/app/api/generate/sweep).
+# The sweeper keeps itself running every few minutes while books are in
+# progress; this only revives it if that loop ever dies. Every 30 minutes
+# keeps a private repo comfortably inside GitHub's free Actions minutes.
+name: Generation watchdog
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Run the sweep
+        run: >
+          curl --fail --silent --show-error --max-time 90
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          https://your-app.example.com/api/generate/sweep

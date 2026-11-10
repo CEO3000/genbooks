@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #05060a;
+  --bg-alt: #0a0d16;
+  --panel: rgba(255, 255, 255, 0.04);
+  --panel-border: rgba(255, 255, 255, 0.09);
+  --panel-border-hover: rgba(120, 200, 255, 0.35);
+  --text: #e8ecf6;
+  --text-dim: #8b93ab;
+  --accent: #5eead4;
+  --accent-2: #a78bfa;
+  --accent-3: #38bdf8;
+  --danger: #fb7185;
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--panel-border);
+}
+
+html {
+  color-scheme: dark;
+  /* Always reserve the scrollbar's space, whether or not the current page
+     actually needs to scroll. Without this, switching between two views
+     of different heights (e.g. /support's admin toggle) turns the
+     scrollbar on or off, and every centered (mx-auto) element on the page
+     visibly shifts left/right as the available width changes. */
+  scrollbar-gutter: stable;
+  /* <html>, not <body>, is the actual root scrolling box in default
+     browser layout — confirmed for real: the same overflow-x:hidden
+     rule on body alone did not clip a real, measured horizontal
+     overflow at all, this one does. */
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  position: relative;
+  /* body is a flex column (see layout.js), and every <main> is a flex
+     item in it. A flex item's default min-width:auto refuses to shrink
+     below its content's own intrinsic width, so a wide descendant deep
+     inside a page (confirmed for real: the Turnstile captcha's iframe)
+     can silently stretch <main> itself past the real viewport width, no
+     matter how many inner containers already have their own min-w-0 fix
+     — this is a defensive, page-wide backstop against that whole class
+     of bug, not a fix for one specific element. */
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: var(--bg);
+  background-image:
+    radial-gradient(60rem 40rem at 85% -10%, rgba(94, 234, 212, 0.14), transparent 60%),
+    radial-gradient(50rem 40rem at -10% 10%, rgba(167, 139, 250, 0.14), transparent 60%),
+    radial-gradient(40rem 30rem at 50% 110%, rgba(56, 189, 248, 0.10), transparent 60%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(60rem 60rem at 50% 0%, black, transparent 75%);
+}
+
+.glass {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 1rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.glass-hover {
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-hover:hover {
+  border-color: var(--panel-border-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.08), 0 12px 30px -12px rgba(94, 234, 212, 0.2);
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, var(--accent), var(--accent-3) 45%, var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, var(--accent), var(--accent-3));
+  color: #04141a;
+  font-weight: 600;
+  border-radius: 999px;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  filter: grayscale(0.4) brightness(0.8);
+  transform: none;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  color: var(--text);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.btn-ghost:hover {
+  border-color: var(--panel-border-hover);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.field {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.95rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field::placeholder {
+  color: var(--text-dim);
+}
+
+.field:focus {
+  border-color: var(--accent-3);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.mono-label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.status-dot {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* A light sweep along the filled part of a running job's progress bar, so
+   it visibly moves even between real progress updates (a long think
+   before the first words arrive). The width itself only ever moves on
+   real server progress. */
+.progress-track.is-live {
+  position: relative;
+}
+
+.progress-track.is-live::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -35%;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, rgba(94, 234, 212, 0.45), transparent);
+  animation: progress-sweep 1.8s ease-in-out infinite;
+}
+
+@keyframes progress-sweep {
+  from { left: -35%; }
+  to { left: 100%; }
+}

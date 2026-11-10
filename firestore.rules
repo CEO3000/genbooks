@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    // Registration profile data. A user can create and read their own
+    // profile; only the Admin SDK (server) or the account owner can update
+    // it. Admin can read any profile.
+    match /users/{uid} {
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow update: if isSignedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    // Book requests. Must be signed in to submit one, and the request is
+    // stamped with the submitter's own uid, so nobody can create a request
+    // on someone else's behalf. Only the owner or an admin can read it back,
+    // matching a private "My Books" library rather than a public board.
+    // Status, progress and paid all change through server routes using the
+    // Admin SDK, which bypasses these rules entirely, so a visitor cannot
+    // grant themselves a free download by calling the client SDK directly.
+    match /requests/{requestId} {
+      // Creation only ever happens through /api/requests/create now (the
+      // Admin SDK, which bypasses these rules), never directly from the
+      // client. That route is what enforces the one-active-book-per-owner
+      // and per-IP abuse checks in requestGate.js — checks a client-side
+      // create rule cannot express (no way to inspect other documents by
+      // IP, and no trustworthy IP available to a Firestore rule at all).
+      allow create: if false;
+      allow read: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow update: if false;
+      allow delete: if false;
+
+      // File chunks for the finished book (epub, pdf, front_cover,
+      // back_cover). Stored as base64 chunks directly in Firestore instead
+      // of Cloud Storage, since Storage requires the paid Blaze plan and
+      // Firestore does not. Covers are generated only after payment, same as
+      // the manuscript itself, so every key here needs the same paid check;
+      // the free part of the funnel is the first-pages previewText field on
+      // the request document, not any file.
+      match /files/{fileKey} {
+        allow read: if isAdmin()
+          || (isSignedIn()
+              && get(/databases/$(database)/documents/requests/$(requestId)).data.ownerId == request.auth.uid
+              && get(/databases/$(database)/documents/requests/$(requestId)).data.get('paid', false) == true);
+        allow write: if false;
+
+        match /chunks/{chunkId} {
+          allow read: if isAdmin()
+            || (isSignedIn()
+                && get(/databases/$(database)/documents/requests/$(requestId)).data.ownerId == request.auth.uid
+                && get(/databases/$(database)/documents/requests/$(requestId)).data.get('paid', false) == true);
+          allow write: if false;
+        }
+      }
+    }
+
+    // Real backend-controlled progress for the Gemini pipeline. Only the
+    // job's own owner (stamped by the Admin SDK at creation, from the same
+    // requests/{id}.ownerId this book already belongs to) or an admin can
+    // read it. All writes come from the Admin SDK (the processing route),
+    // never the client, same pattern as requests/{requestId} above. Chapter
+    // drafts in the chapters subcollection contain the manuscript itself
+    // before it's paid-gated into requests/{id}/files, so they get no
+    // client read access at all, admin included by default (nobody needs
+    // to read a mid-generation draft from the browser).
+    match /generationJobs/{jobId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if false;
+    }
+
+    // Support tickets. Created only through /api/support/create (Admin
+    // SDK), same reasoning as requests/{requestId}: a client-side create
+    // rule can't verify the submitter's IP or rate-limit abuse. The
+    // submitter can read their own ticket back (to see if it's answered);
+    // admin can read and manage all of them. Updates (marking resolved,
+    // adding a note) go through /api/support/resolve, not directly from
+    // the client, even for admin — same defense-in-depth pattern as
+    // everything else server-controlled in this file.
+    match /supportTickets/{ticketId} {
+      allow create: if false;
+      allow read: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
